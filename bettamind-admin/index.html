@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="robots" content="noindex,nofollow" />
+<title>BettaMind — Insights</title>
+<style>
+  :root {
+    --bg: #0b1220;
+    --panel: #131c2f;
+    --panel-2: #1a2540;
+    --line: #243150;
+    --text: #e6ecf5;
+    --muted: #8a98b3;
+    --accent: #6aa9ff;
+    --good: #5fd1a6;
+    --warn: #f6b64a;
+    --bad: #ef6b6b;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  header { padding: 18px 24px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  header h1 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: 0.2px; }
+  header .meta { color: var(--muted); font-size: 12px; }
+  main { padding: 20px 24px 64px; max-width: 1200px; margin: 0 auto; }
+  button { background: var(--accent); color: #001029; border: 0; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+  button.secondary { background: transparent; color: var(--text); border: 1px solid var(--line); }
+  button:disabled { opacity: 0.5; cursor: default; }
+  .grid { display: grid; gap: 14px; }
+  .grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (max-width: 900px) {
+    .grid.cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.cols-2 { grid-template-columns: 1fr; }
+  }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .card h2 { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
+  .stat { font-size: 26px; font-weight: 700; line-height: 1.1; }
+  .sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .row { margin: 22px 0 10px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; }
+  .funnel-row { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+  .funnel-bar { flex: 1; height: 22px; background: var(--panel-2); border-radius: 4px; overflow: hidden; }
+  .funnel-fill { height: 100%; background: linear-gradient(90deg, #6aa9ff, #5fd1a6); }
+  .funnel-label { width: 130px; color: var(--muted); }
+  .funnel-val { width: 110px; text-align: right; font-variant-numeric: tabular-nums; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--panel-2); color: var(--muted); font-size: 11px; }
+  .login { max-width: 380px; margin: 80px auto; text-align: center; }
+  .login p { color: var(--muted); margin: 8px 0 24px; }
+  .err { background: #3b1d22; color: #ffb3b3; border: 1px solid #6e2a32; padding: 10px 14px; border-radius: 6px; margin: 10px 0; font-size: 13px; }
+  canvas { width: 100% !important; height: 220px !important; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>BettaMind — Insights</h1>
+    <div class="meta" id="meta">—</div>
+  </div>
+  <div>
+    <button id="refresh" class="secondary" style="display:none">Refresh</button>
+    <button id="signout" class="secondary" style="display:none">Sign out</button>
+  </div>
+</header>
+<main id="root">
+  <div class="login" id="login" style="display:none">
+    <h2 style="margin:0 0 4px">Sign in</h2>
+    <p>Use the same Google account as the BettaMind app. Only allow-listed admins can view stats.</p>
+    <button id="signin">Sign in with Google</button>
+    <div id="login-err"></div>
+  </div>
+  <div id="dash" style="display:none">
+    <div id="err"></div>
+
+    <div class="row">Overview</div>
+    <div class="grid cols-4">
+      <div class="card"><h2>Total users</h2><div class="stat" id="k_total_users">–</div><div class="sub" id="k_total_users_sub"></div></div>
+      <div class="card"><h2>New (7d / 30d)</h2><div class="stat" id="k_new">–</div><div class="sub" id="k_new_sub"></div></div>
+      <div class="card"><h2>Total fish</h2><div class="stat" id="k_total_fish">–</div><div class="sub" id="k_total_fish_sub"></div></div>
+      <div class="card"><h2>User chat msgs</h2><div class="stat" id="k_total_msgs">–</div><div class="sub" id="k_total_msgs_sub"></div></div>
+    </div>
+
+    <div class="row">Activation funnel (cumulative, all-time)</div>
+    <div class="card">
+      <div id="funnel"></div>
+    </div>
+
+    <div class="row">Engagement</div>
+    <div class="grid cols-3">
+      <div class="card"><h2>DAU (events ∪ chat)</h2><div class="stat" id="k_dau">–</div><div class="sub">distinct users active in last 24h</div></div>
+      <div class="card"><h2>WAU</h2><div class="stat" id="k_wau">–</div><div class="sub">distinct users active in last 7d</div></div>
+      <div class="card"><h2>MAU</h2><div class="stat" id="k_mau">–</div><div class="sub">distinct users active in last 30d</div></div>
+    </div>
+
+    <div class="row">Trends (last 30 days)</div>
+    <div class="grid cols-2">
+      <div class="card"><h2>Signups / day</h2><canvas id="c_signups"></canvas></div>
+      <div class="card"><h2>Daily activity</h2><canvas id="c_activity"></canvas></div>
+    </div>
+
+    <div class="row">Retention (cohort returned)</div>
+    <div class="grid cols-3">
+      <div class="card"><h2>D1</h2><div class="stat" id="k_d1">–</div><div class="sub" id="k_d1_sub"></div></div>
+      <div class="card"><h2>D7</h2><div class="stat" id="k_d7">–</div><div class="sub" id="k_d7_sub"></div></div>
+      <div class="card"><h2>D30</h2><div class="stat" id="k_d30">–</div><div class="sub" id="k_d30_sub"></div></div>
+    </div>
+
+    <div class="row">AI quota saturation</div>
+    <div class="grid cols-3">
+      <div class="card"><h2>Users at/past free cap</h2><div class="stat" id="k_qcap">–</div><div class="sub">used ≥ 5 today</div></div>
+      <div class="card"><h2>Users w/ ad bonus</h2><div class="stat" id="k_qbonus">–</div><div class="sub">claimed at least one rewarded ad</div></div>
+      <div class="card"><h2>Avg used (active)</h2><div class="stat" id="k_qavg">–</div><div class="sub">avg queries among today's chatters</div></div>
+    </div>
+
+    <div class="row">Composition</div>
+    <div class="grid cols-2">
+      <div class="card"><h2>Plan mix</h2><canvas id="c_plans"></canvas></div>
+      <div class="card"><h2>Event types</h2><canvas id="c_events"></canvas></div>
+    </div>
+
+    <div class="row">Top fish varieties</div>
+    <div class="card"><table id="t_varieties"><thead><tr><th>Variety</th><th style="text-align:right">Fish</th></tr></thead><tbody></tbody></table></div>
+
+    <div class="row">Care reminders & push</div>
+    <div class="grid cols-3">
+      <div class="card"><h2>Active reminders</h2><div class="stat" id="k_rem_active">–</div></div>
+      <div class="card"><h2>Users w/ reminders</h2><div class="stat" id="k_rem_users">–</div></div>
+      <div class="card"><h2>Users w/ push token</h2><div class="stat" id="k_push_users">–</div></div>
+    </div>
+    <div class="grid cols-2" style="margin-top:14px">
+      <div class="card"><h2>Notifications delivered (7d)</h2><div class="stat" id="k_notif_ok">–</div></div>
+      <div class="card"><h2>Notifications failed (7d)</h2><div class="stat" id="k_notif_fail">–</div></div>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import Chart from "https://esm.sh/chart.js@4/auto";
+
+// Supabase project — URL and anon key are public (RLS enforces access).
+const SUPABASE_URL = "https://kwpuyaobmgpdvbluifbn.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3cHV5YW9ibWdwZHZibHVpZmJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyMzQzMTcsImV4cCI6MjA5MDgxMDMxN30.VTtwB0M1yl5PyJm7Eir4uKUMKkAfP322CMYvSafp3zQ";
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+});
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => (n == null ? "–" : Number(n).toLocaleString());
+const pct = (a, b) => (!b ? "0%" : Math.round((a / b) * 100) + "%");
+
+let charts = {};
+function destroyCharts() {
+  Object.values(charts).forEach((c) => c && c.destroy());
+  charts = {};
+}
+
+async function init() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) showDash();
+  else showLogin();
+
+  supabase.auth.onAuthStateChange((_e, s) => {
+    if (s) showDash();
+    else showLogin();
+  });
+}
+
+function showLogin() {
+  $("login").style.display = "block";
+  $("dash").style.display = "none";
+  $("signout").style.display = "none";
+  $("refresh").style.display = "none";
+}
+
+function showDash() {
+  $("login").style.display = "none";
+  $("dash").style.display = "block";
+  $("signout").style.display = "inline-block";
+  $("refresh").style.display = "inline-block";
+  load();
+}
+
+$("signin").onclick = async () => {
+  $("login-err").innerHTML = "";
+  const redirectTo = location.origin + location.pathname;
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo },
+  });
+  if (error) $("login-err").innerHTML = `<div class="err">${error.message}</div>`;
+};
+
+$("signout").onclick = async () => {
+  destroyCharts();
+  await supabase.auth.signOut();
+};
+
+$("refresh").onclick = () => load();
+
+async function load() {
+  $("err").innerHTML = "";
+  $("meta").textContent = "Loading…";
+  const { data, error } = await supabase.rpc("admin_stats");
+  if (error) {
+    $("meta").textContent = "Error";
+    const msg = error.message || "Failed to load stats";
+    const hint = msg.includes("forbidden")
+      ? " — your email isn't in admin_emails. Run: insert into public.admin_emails(email) values ('your@email');"
+      : "";
+    $("err").innerHTML = `<div class="err">${msg}${hint}</div>`;
+    return;
+  }
+  render(data);
+}
+
+function render(d) {
+  $("meta").textContent = `Generated ${new Date(d.generated_at).toLocaleString()}`;
+
+  // Overview
+  const t = d.totals || {};
+  $("k_total_users").textContent = fmt(t.total_users);
+  $("k_total_users_sub").textContent = `+${fmt(t.new_24h)} in 24h`;
+  $("k_new").textContent = `${fmt(t.new_7d)} / ${fmt(t.new_30d)}`;
+  $("k_new_sub").textContent = "new signups";
+  $("k_total_fish").textContent = fmt(t.total_fish);
+  $("k_total_fish_sub").textContent = `${fmt(t.total_events)} events logged`;
+  $("k_total_msgs").textContent = fmt(t.total_user_msgs);
+  $("k_total_msgs_sub").textContent = "user → Finn (all time)";
+
+  // Funnel
+  const f = d.funnel || {};
+  const stages = [
+    { label: "Signed up", v: f.signed_up || 0 },
+    { label: "Added a fish", v: f.added_fish || 0 },
+    { label: "Chatted with Finn", v: f.chatted || 0 },
+    { label: "Logged an event", v: f.logged_event || 0 },
+  ];
+  const top = stages[0].v || 1;
+  $("funnel").innerHTML = stages
+    .map((s) => {
+      const w = Math.max(2, (s.v / top) * 100);
+      return `<div class="funnel-row">
+        <div class="funnel-label">${s.label}</div>
+        <div class="funnel-bar"><div class="funnel-fill" style="width:${w}%"></div></div>
+        <div class="funnel-val">${fmt(s.v)} <span class="pill">${pct(s.v, top)}</span></div>
+      </div>`;
+    })
+    .join("");
+
+  // Engagement: union of events + chat (approximate by max — both should overlap heavily)
+  const e = d.engagement || {};
+  $("k_dau").textContent = fmt(Math.max(e.dau_events || 0, e.dau_chat || 0));
+  $("k_wau").textContent = fmt(Math.max(e.wau_events || 0, e.wau_chat || 0));
+  $("k_mau").textContent = fmt(Math.max(e.mau_events || 0, e.mau_chat || 0));
+
+  // Retention
+  const r = d.retention || {};
+  $("k_d1").textContent = pct(r.d1_returned, r.d1_size);
+  $("k_d1_sub").textContent = `${fmt(r.d1_returned)} of ${fmt(r.d1_size)} cohort`;
+  $("k_d7").textContent = pct(r.d7_returned, r.d7_size);
+  $("k_d7_sub").textContent = `${fmt(r.d7_returned)} of ${fmt(r.d7_size)} cohort`;
+  $("k_d30").textContent = pct(r.d30_returned, r.d30_size);
+  $("k_d30_sub").textContent = `${fmt(r.d30_returned)} of ${fmt(r.d30_size)} cohort`;
+
+  // Quota
+  const q = d.quota || {};
+  $("k_qcap").textContent = fmt(q.users_at_or_past_free_cap);
+  $("k_qbonus").textContent = fmt(q.users_with_ad_bonus);
+  $("k_qavg").textContent = fmt(q.avg_used_when_active);
+
+  // Care
+  const c = d.care || {};
+  $("k_rem_active").textContent = fmt(c.active_reminders);
+  $("k_rem_users").textContent = fmt(c.users_with_reminders);
+  $("k_push_users").textContent = fmt(c.users_with_push);
+
+  const n = d.notifications || {};
+  $("k_notif_ok").textContent = fmt(n.delivered_7d);
+  $("k_notif_fail").textContent = fmt(n.failed_7d);
+
+  // Varieties table
+  const tbody = $("t_varieties").querySelector("tbody");
+  tbody.innerHTML = (d.varieties || [])
+    .map((row) => `<tr><td>${row.v}</td><td style="text-align:right">${fmt(row.c)}</td></tr>`)
+    .join("") || `<tr><td colspan="2" style="color:var(--muted)">No fish yet.</td></tr>`;
+
+  // Charts
+  destroyCharts();
+  drawSignups(d.signups_daily || []);
+  drawActivity(d.activity_daily || []);
+  drawPlans(d.plan_mix || {});
+  drawEvents(d.event_kinds || {});
+}
+
+const chartDefaults = {
+  responsive: true,
+  maintainAspectRatio: false,
+  scales: {
+    x: { ticks: { color: "#8a98b3" }, grid: { color: "#243150" } },
+    y: { ticks: { color: "#8a98b3" }, grid: { color: "#243150" }, beginAtZero: true },
+  },
+  plugins: { legend: { labels: { color: "#e6ecf5" } } },
+};
+
+function drawSignups(series) {
+  const ctx = $("c_signups").getContext("2d");
+  charts.signups = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: series.map((p) => p.d),
+      datasets: [{ label: "Signups", data: series.map((p) => p.c), backgroundColor: "#6aa9ff" }],
+    },
+    options: chartDefaults,
+  });
+}
+
+function drawActivity(series) {
+  const ctx = $("c_activity").getContext("2d");
+  charts.activity = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: series.map((p) => p.d),
+      datasets: [
+        { label: "Events", data: series.map((p) => p.events), borderColor: "#5fd1a6", backgroundColor: "#5fd1a633", tension: 0.25, fill: true },
+        { label: "Chat msgs", data: series.map((p) => p.msgs), borderColor: "#6aa9ff", backgroundColor: "#6aa9ff33", tension: 0.25, fill: true },
+        { label: "Photo msgs", data: series.map((p) => p.photo_msgs), borderColor: "#f6b64a", backgroundColor: "#f6b64a33", tension: 0.25, fill: true },
+      ],
+    },
+    options: chartDefaults,
+  });
+}
+
+function drawPlans(obj) {
+  const labels = Object.keys(obj);
+  const data = Object.values(obj);
+  const ctx = $("c_plans").getContext("2d");
+  charts.plans = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels,
+      datasets: [{ data, backgroundColor: ["#6aa9ff", "#5fd1a6", "#f6b64a", "#ef6b6b"] }],
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: "#e6ecf5" } } } },
+  });
+}
+
+function drawEvents(obj) {
+  const labels = Object.keys(obj);
+  const data = Object.values(obj);
+  const ctx = $("c_events").getContext("2d");
+  charts.events = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{ label: "Events", data, backgroundColor: "#5fd1a6" }],
+    },
+    options: chartDefaults,
+  });
+}
+
+init();
+</script>
+</body>
+</html>
